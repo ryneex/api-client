@@ -1,15 +1,16 @@
 {
-  "name": "api-client",
+  "name": "@ryneex/api-client",
   "module": "src/index.ts",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "exports": {
     ".": "./dist/index.js"
   },
   "scripts": {
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{js,ts,tsx,json,css,md}\"",
-    "build": "tsup && cp package.json dist/package.json && cp README.md dist/README.md"
+    "build": "tsup && cp package.json dist/package.json && cp README.md dist/README.md",
+    "build:publish": "bun run build && cd dist && npm publish"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.90.16",
@@ -23,9 +24,10 @@
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.7.4",
+    "tsup": "^8.5.1",
     "typescript-eslint": "^8.51.0"
   },
-  "dependencies": {
-    "tsup": "^8.5.1"
+  "publishConfig": {
+    "access": "public"
   }
 }
