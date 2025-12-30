@@ -106,7 +106,8 @@ export class BaseApiClient {
       throw new Error(`API SDK: Unsupported method: ${method}`);
     };
 
-    const queryKey = (data: TData) => ["api-call", "query", uuid, data];
+    const queryKey = (data: TData | void) =>
+      data ? ["api-call", "query", uuid, data] : ["api-call", "query", uuid];
     const mutationKey = () => ["api-call", "mutation", uuid];
 
     const queryOptions = (
