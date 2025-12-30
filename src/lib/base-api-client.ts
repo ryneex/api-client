@@ -64,7 +64,7 @@ export class BaseApiClient {
       if (method === "POST") {
         const response = await this.axios.post<TResponse>(
           url,
-          undefined,
+          axiosOptions?.data,
           axiosOptions,
         );
         responseSchema.parse(response.data);
@@ -74,7 +74,7 @@ export class BaseApiClient {
       if (method === "PUT") {
         const response = await this.axios.put<TResponse>(
           url,
-          undefined,
+          axiosOptions?.data,
           axiosOptions,
         );
         responseSchema.parse(response.data);
@@ -84,7 +84,7 @@ export class BaseApiClient {
       if (method === "PATCH") {
         const response = await this.axios.patch<TResponse>(
           url,
-          undefined,
+          axiosOptions?.data,
           axiosOptions,
         );
         responseSchema.parse(response.data);
