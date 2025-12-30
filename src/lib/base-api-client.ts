@@ -15,7 +15,13 @@ type ReactQueryOptions<TResponse, TData = void> = Omit<
   "queryFn" | "queryKey"
 > & { queryKey?: unknown[] } & (TData extends void
     ? { data?: void }
-    : { data: TData });
+    : { data: TData }) & {
+    onSuccess?: (data: TResponse, variables: TData) => void;
+    onError?: (
+      error: ZodError<TResponse> | AxiosError,
+      variables: TData,
+    ) => void;
+  };
 
 type ReactMutationOptions<TResponse, TData = void> = Omit<
   UseMutationOptions<TResponse, ZodError<TResponse> | AxiosError, TData>,
@@ -115,8 +121,17 @@ export class BaseApiClient {
 
       return {
         queryFn: async (): Promise<TResponse> => {
-          const response = await call(data as TData);
-          return response.data;
+          try {
+            const response = await call(data as TData);
+            options.onSuccess?.(response.data, data as TData);
+            return response.data;
+          } catch (error) {
+            options.onError?.(
+              error as ZodError<TResponse> | AxiosError,
+              data as TData,
+            );
+            throw error;
+          }
         },
         queryKey: queryKey(data as TData),
         ...options,
