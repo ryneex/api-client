@@ -158,13 +158,11 @@ export class BaseApiClient {
       };
     };
 
-    return {
-      id: uuid,
-      call,
+    return Object.assign(call, {
       queryKey,
       queryOptions,
       mutationKey,
       mutationOptions,
-    };
+    });
   }
 }
