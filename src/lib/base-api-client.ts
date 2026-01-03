@@ -10,21 +10,21 @@ import type {
 } from "axios";
 import z, { ZodError } from "zod";
 
-type ReactQueryOptions<TResponse, TData = void> = Omit<
-  UseQueryOptions<TResponse, ZodError<TResponse> | AxiosError>,
+type ReactQueryOptions<TOutput, TInput = void> = Omit<
+  UseQueryOptions<TOutput, ZodError<TOutput> | AxiosError>,
   "queryFn" | "queryKey"
-> & { queryKey?: unknown[] } & (TData extends void
+> & { queryKey?: unknown[] } & (TInput extends void
     ? { data?: void }
-    : { data: TData }) & {
-    onSuccess?: (data: TResponse, variables: TData) => void;
+    : { data: TInput }) & {
+    onSuccess?: (data: TOutput, variables: TInput) => void;
     onError?: (
-      error: ZodError<TResponse> | AxiosError,
-      variables: TData,
+      error: ZodError<TOutput> | AxiosError,
+      variables: TInput,
     ) => void;
   };
 
-type ReactMutationOptions<TResponse, TData = void> = Omit<
-  UseMutationOptions<TResponse, ZodError<TResponse> | AxiosError, TData>,
+type ReactMutationOptions<TOutput, TInput = void> = Omit<
+  UseMutationOptions<TOutput, ZodError<TOutput> | AxiosError, TInput>,
   "mutationFn" | "mutationKey"
 > & {
   mutationKey?: unknown[];
@@ -37,24 +37,24 @@ export class BaseApiClient {
     this.axios = axios;
   }
 
-  createEndpoint<TResponse, TData = void>({
+  createEndpoint<TOutput, TInput = void>({
     method,
     path,
     axiosOptions: axiosOptionsFn,
-    dataSchema,
-    responseSchema,
+    inputSchema,
+    outputSchema,
   }: {
     method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-    path: string | ((data: TData) => string);
-    axiosOptions?: (data: TData) => AxiosRequestConfig;
-    dataSchema?: z.ZodType<TData>;
-    responseSchema: z.ZodType<TResponse>;
+    path: string | ((data: TInput) => string);
+    axiosOptions?: (data: TInput) => AxiosRequestConfig;
+    inputSchema?: z.ZodType<TInput>;
+    outputSchema: z.ZodType<TOutput>;
   }) {
     const uuid = crypto.randomUUID();
 
-    const call = async (data: TData): Promise<AxiosResponse<TResponse>> => {
-      if (dataSchema) {
-        dataSchema.parse(data);
+    const call = async (data: TInput): Promise<AxiosResponse<TOutput>> => {
+      if (inputSchema) {
+        inputSchema.parse(data);
       }
 
       const axiosOptions = axiosOptionsFn?.(data);
@@ -62,94 +62,90 @@ export class BaseApiClient {
       const url = typeof path === "function" ? path(data) : path;
 
       if (method === "GET") {
-        const response = await this.axios.get<TResponse>(url, axiosOptions);
-        responseSchema.parse(response.data);
+        const response = await this.axios.get<TOutput>(url, axiosOptions);
+        outputSchema.parse(response.data);
         return response;
       }
 
       if (method === "POST") {
-        const response = await this.axios.post<TResponse>(
+        const response = await this.axios.post<TOutput>(
           url,
           axiosOptions?.data,
           axiosOptions,
         );
-        responseSchema.parse(response.data);
+        outputSchema.parse(response.data);
         return response;
       }
 
       if (method === "PUT") {
-        const response = await this.axios.put<TResponse>(
+        const response = await this.axios.put<TOutput>(
           url,
           axiosOptions?.data,
           axiosOptions,
         );
-        responseSchema.parse(response.data);
+        outputSchema.parse(response.data);
         return response;
       }
 
       if (method === "PATCH") {
-        const response = await this.axios.patch<TResponse>(
+        const response = await this.axios.patch<TOutput>(
           url,
           axiosOptions?.data,
           axiosOptions,
         );
-        responseSchema.parse(response.data);
+        outputSchema.parse(response.data);
         return response;
       }
 
       if (method === "DELETE") {
-        const response = await this.axios.delete<TResponse>(url, axiosOptions);
-        responseSchema.parse(response.data);
+        const response = await this.axios.delete<TOutput>(url, axiosOptions);
+        outputSchema.parse(response.data);
         return response;
       }
 
       throw new Error(`API SDK: Unsupported method: ${method}`);
     };
 
-    const queryKey = (data: TData | void) =>
+    const queryKey = (data: TInput | void) =>
       data ? ["api-call", "query", uuid, data] : ["api-call", "query", uuid];
     const mutationKey = () => ["api-call", "mutation", uuid];
 
     const queryOptions = (
-      opts: TData extends void
-        ? ReactQueryOptions<TResponse> | void
-        : ReactQueryOptions<TResponse, TData>,
-    ): UseQueryOptions<TResponse, ZodError<TResponse> | AxiosError> => {
+      opts: TInput extends void
+        ? ReactQueryOptions<TOutput> | void
+        : ReactQueryOptions<TOutput, TInput>,
+    ): UseQueryOptions<TOutput, ZodError<TOutput> | AxiosError> => {
       const { data, ...options } = (opts ?? {}) as ReactQueryOptions<
-        TResponse,
-        TData
+        TOutput,
+        TInput
       >;
 
       return {
-        queryFn: async (): Promise<TResponse> => {
+        queryFn: async (): Promise<TOutput> => {
           try {
-            const response = await call(data as TData);
-            options.onSuccess?.(response.data, data as TData);
+            const response = await call(data as TInput);
+            options.onSuccess?.(response.data, data as TInput);
             return response.data;
           } catch (error) {
             options.onError?.(
-              error as ZodError<TResponse> | AxiosError,
-              data as TData,
+              error as ZodError<TOutput> | AxiosError,
+              data as TInput,
             );
             throw error;
           }
         },
-        queryKey: queryKey(data as TData),
+        queryKey: queryKey(data as TInput),
         ...options,
       };
     };
 
     const mutationOptions = (
-      opts: ReactMutationOptions<TResponse, TData> | void,
-    ): UseMutationOptions<
-      TResponse,
-      ZodError<TResponse> | AxiosError,
-      TData
-    > => {
-      const options = (opts ?? {}) as ReactMutationOptions<TResponse, TData>;
+      opts: ReactMutationOptions<TOutput, TInput> | void,
+    ): UseMutationOptions<TOutput, ZodError<TOutput> | AxiosError, TInput> => {
+      const options = (opts ?? {}) as ReactMutationOptions<TOutput, TInput>;
 
       return {
-        mutationFn: async (data): Promise<TResponse> => {
+        mutationFn: async (data): Promise<TOutput> => {
           const response = await call(data);
           return response.data;
         },
@@ -163,6 +159,12 @@ export class BaseApiClient {
       queryOptions,
       mutationKey,
       mutationOptions,
+      config: {
+        inputSchema,
+        outputSchema,
+        method,
+        path,
+      },
     });
   }
 }
