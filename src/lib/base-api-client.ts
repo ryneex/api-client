@@ -37,7 +37,12 @@ export class BaseApiClient {
     this.axios = axios;
   }
 
-  createEndpoint<TOutput, TInput = void>({
+  createEndpoint<
+    TOutputSchema extends z.ZodType,
+    TInputSchema extends z.ZodType | undefined,
+    TOutput = z.infer<TOutputSchema>,
+    TInput = undefined extends TInputSchema ? void : z.infer<TInputSchema>,
+  >({
     method,
     path,
     axiosOptions: axiosOptionsFn,
@@ -47,8 +52,8 @@ export class BaseApiClient {
     method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     path: string | ((data: TInput) => string);
     axiosOptions?: (data: TInput) => AxiosRequestConfig;
-    inputSchema?: z.ZodType<TInput>;
-    outputSchema: z.ZodType<TOutput>;
+    inputSchema?: TInputSchema;
+    outputSchema: TOutputSchema;
   }) {
     const uuid = crypto.randomUUID();
 
@@ -160,7 +165,9 @@ export class BaseApiClient {
       mutationKey,
       mutationOptions,
       config: {
-        inputSchema,
+        inputSchema: inputSchema as undefined extends TInputSchema
+          ? undefined
+          : NonNullable<TInputSchema>,
         outputSchema,
         method,
         path,
