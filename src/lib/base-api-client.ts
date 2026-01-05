@@ -34,7 +34,7 @@ type ReactMutationOptions<TOutput, TInput, TVariables> = Omit<
   UseMutationOptions<
     TOutput,
     ZodError<TOutput> | AxiosError,
-    TData<TInput, TVariables>
+    OptionalTData<TInput, TVariables>
   >,
   "mutationFn" | "mutationKey"
 > & {
@@ -190,7 +190,7 @@ export class BaseApiClient {
     ): UseMutationOptions<
       TOutput,
       ZodError<TOutput> | AxiosError,
-      TData<TInput, TVariables>
+      OptionalTData<TInput, TVariables>
     > => {
       const options = (opts ?? {}) as ReactMutationOptions<
         TOutput,
@@ -200,9 +200,7 @@ export class BaseApiClient {
 
       return {
         mutationFn: async (data): Promise<TOutput> => {
-          const response = await call(
-            data as OptionalTData<TInput, TVariables>,
-          );
+          const response = await call(data);
           return response.data;
         },
         mutationKey: mutationKey(),
