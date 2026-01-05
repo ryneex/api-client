@@ -10,25 +10,46 @@ import type {
 } from "axios";
 import z, { ZodError } from "zod";
 
-type ReactQueryOptions<TOutput, TInput = void> = Omit<
+type ReactQueryOptions<TOutput, TInput, TVariables> = Omit<
   UseQueryOptions<TOutput, ZodError<TOutput> | AxiosError>,
   "queryFn" | "queryKey"
-> & { queryKey?: unknown[] } & (TInput extends void
-    ? { data?: void }
-    : { data: TInput }) & {
-    onSuccess?: (data: TOutput, variables: TInput) => void;
+> & { queryKey?: unknown[] } & (object extends TData<TInput, TVariables>
+    ? { data?: undefined }
+    : { data: TData<TInput, TVariables> }) & {
+    onSuccess?: (
+      data: TOutput,
+      payload: object extends TData<TInput, TVariables>
+        ? void
+        : TData<TInput, TVariables>,
+    ) => void;
     onError?: (
       error: ZodError<TOutput> | AxiosError,
-      variables: TInput,
+      payload: object extends TData<TInput, TVariables>
+        ? void
+        : TData<TInput, TVariables>,
     ) => void;
   };
 
-type ReactMutationOptions<TOutput, TInput = void> = Omit<
-  UseMutationOptions<TOutput, ZodError<TOutput> | AxiosError, TInput>,
+type ReactMutationOptions<TOutput, TInput, TVariables> = Omit<
+  UseMutationOptions<
+    TOutput,
+    ZodError<TOutput> | AxiosError,
+    TData<TInput, TVariables>
+  >,
   "mutationFn" | "mutationKey"
 > & {
   mutationKey?: unknown[];
 };
+
+type TData<TInput, TVariables> = {} & (TInput extends void
+  ? { input?: undefined }
+  : { input: TInput }) &
+  (TVariables extends void
+    ? { variables?: undefined }
+    : { variables: TVariables });
+
+type OptionalTData<TInput, TVariables> =
+  object extends TData<TInput, TVariables> ? void : TData<TInput, TVariables>;
 
 export class BaseApiClient {
   readonly axios: AxiosInstance;
@@ -40,26 +61,40 @@ export class BaseApiClient {
   createEndpoint<
     TOutputSchema extends z.ZodType,
     TInputSchema extends z.ZodType | undefined,
+    TVariablesSchema extends z.ZodType | undefined,
     TOutput = z.infer<TOutputSchema>,
     TInput = undefined extends TInputSchema ? void : z.infer<TInputSchema>,
+    TVariables = undefined extends TVariablesSchema
+      ? void
+      : z.infer<TVariablesSchema>,
   >({
     method,
     path,
     axiosOptions: axiosOptionsFn,
+    variablesSchema,
     inputSchema,
     outputSchema,
   }: {
     method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-    path: string | ((data: TInput) => string);
-    axiosOptions?: (data: TInput) => AxiosRequestConfig;
+    path: string | ((data: TData<TInput, TVariables>) => string);
+    axiosOptions?: (data: TData<TInput, TVariables>) => AxiosRequestConfig;
+    variablesSchema?: TVariablesSchema;
     inputSchema?: TInputSchema;
     outputSchema: TOutputSchema;
   }) {
     const uuid = crypto.randomUUID();
 
-    const call = async (data: TInput): Promise<AxiosResponse<TOutput>> => {
+    const call = async (
+      opts: OptionalTData<TInput, TVariables>,
+    ): Promise<AxiosResponse<TOutput>> => {
+      const data = (opts ?? {}) as TData<TInput, TVariables>;
+
       if (inputSchema) {
-        inputSchema.parse(data);
+        inputSchema.parse(data.input);
+      }
+
+      if (variablesSchema) {
+        variablesSchema.parse(data.variables);
       }
 
       const axiosOptions = axiosOptionsFn?.(data);
@@ -116,25 +151,31 @@ export class BaseApiClient {
     const mutationKey = () => ["api-call", "mutation", uuid];
 
     const queryOptions = (
-      opts: TInput extends void
-        ? ReactQueryOptions<TOutput> | void
-        : ReactQueryOptions<TOutput, TInput>,
+      opts: object extends TData<TInput, TVariables>
+        ? ReactQueryOptions<TOutput, TInput, TVariables> | void
+        : ReactQueryOptions<TOutput, TInput, TVariables>,
     ): UseQueryOptions<TOutput, ZodError<TOutput> | AxiosError> => {
       const { data, ...options } = (opts ?? {}) as ReactQueryOptions<
         TOutput,
-        TInput
+        TInput,
+        TVariables
       >;
 
       return {
         queryFn: async (): Promise<TOutput> => {
           try {
-            const response = await call(data as TInput);
-            options.onSuccess?.(response.data, data as TInput);
+            const response = await call(
+              data as OptionalTData<TInput, TVariables>,
+            );
+            options.onSuccess?.(
+              response.data,
+              data as OptionalTData<TInput, TVariables>,
+            );
             return response.data;
           } catch (error) {
             options.onError?.(
               error as ZodError<TOutput> | AxiosError,
-              data as TInput,
+              data as OptionalTData<TInput, TVariables>,
             );
             throw error;
           }
@@ -145,13 +186,23 @@ export class BaseApiClient {
     };
 
     const mutationOptions = (
-      opts: ReactMutationOptions<TOutput, TInput> | void,
-    ): UseMutationOptions<TOutput, ZodError<TOutput> | AxiosError, TInput> => {
-      const options = (opts ?? {}) as ReactMutationOptions<TOutput, TInput>;
+      opts: ReactMutationOptions<TOutput, TInput, TVariables> | void,
+    ): UseMutationOptions<
+      TOutput,
+      ZodError<TOutput> | AxiosError,
+      TData<TInput, TVariables>
+    > => {
+      const options = (opts ?? {}) as ReactMutationOptions<
+        TOutput,
+        TInput,
+        TVariables
+      >;
 
       return {
         mutationFn: async (data): Promise<TOutput> => {
-          const response = await call(data);
+          const response = await call(
+            data as OptionalTData<TInput, TVariables>,
+          );
           return response.data;
         },
         mutationKey: mutationKey(),
