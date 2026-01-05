@@ -214,6 +214,9 @@ export class BaseApiClient {
       mutationKey,
       mutationOptions,
       config: {
+        variablesSchema: variablesSchema as undefined extends TVariablesSchema
+          ? undefined
+          : NonNullable<TVariablesSchema>,
         inputSchema: inputSchema as undefined extends TInputSchema
           ? undefined
           : NonNullable<TInputSchema>,
