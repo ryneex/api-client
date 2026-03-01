@@ -14,8 +14,8 @@ type ReactQueryOptions<TOutput, TInput, TVariables> = Omit<
   UseQueryOptions<TOutput, ZodError<TOutput> | AxiosError>,
   "queryFn" | "queryKey"
 > & { queryKey?: unknown[] } & (object extends TData<TInput, TVariables>
-    ? { data?: undefined }
-    : { data: TData<TInput, TVariables> }) & {
+  ? { data?: undefined }
+  : { data: TData<TInput, TVariables> }) & {
     onSuccess?: (
       data: TOutput,
       payload: object extends TData<TInput, TVariables>
@@ -65,8 +65,8 @@ export class BaseApiClient {
     TOutput = z.infer<TOutputSchema>,
     TInput = undefined extends TInputSchema ? void : z.infer<TInputSchema>,
     TVariables = undefined extends TVariablesSchema
-      ? void
-      : z.infer<TVariablesSchema>,
+    ? void
+    : z.infer<TVariablesSchema>,
   >({
     method,
     path,
@@ -101,10 +101,14 @@ export class BaseApiClient {
 
       const url = typeof path === "function" ? path(data) : path;
 
+      function createResponse(response: AxiosResponse<TOutput>): AxiosResponse<TOutput> {
+        const data = outputSchema.parse(response.data) as TOutput;
+        return { ...response, data };
+      }
+
       if (method === "GET") {
         const response = await this.axios.get<TOutput>(url, axiosOptions);
-        outputSchema.parse(response.data);
-        return response;
+        return createResponse(response);
       }
 
       if (method === "POST") {
@@ -113,8 +117,7 @@ export class BaseApiClient {
           axiosOptions?.data,
           axiosOptions,
         );
-        outputSchema.parse(response.data);
-        return response;
+        return createResponse(response);
       }
 
       if (method === "PUT") {
@@ -123,8 +126,7 @@ export class BaseApiClient {
           axiosOptions?.data,
           axiosOptions,
         );
-        outputSchema.parse(response.data);
-        return response;
+        return createResponse(response);
       }
 
       if (method === "PATCH") {
@@ -133,14 +135,12 @@ export class BaseApiClient {
           axiosOptions?.data,
           axiosOptions,
         );
-        outputSchema.parse(response.data);
-        return response;
+        return createResponse(response);
       }
 
       if (method === "DELETE") {
         const response = await this.axios.delete<TOutput>(url, axiosOptions);
-        outputSchema.parse(response.data);
-        return response;
+        return createResponse(response);
       }
 
       throw new Error(`API SDK: Unsupported method: ${method}`);
