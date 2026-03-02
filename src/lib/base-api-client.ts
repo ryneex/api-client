@@ -14,8 +14,8 @@ type ReactQueryOptions<TOutput, TInput, TVariables> = Omit<
   UseQueryOptions<TOutput, ZodError<TOutput> | AxiosError>,
   "queryFn" | "queryKey"
 > & { queryKey?: unknown[] } & (object extends TData<TInput, TVariables>
-  ? { data?: undefined }
-  : { data: TData<TInput, TVariables> }) & {
+    ? { data?: undefined }
+    : { data: TData<TInput, TVariables> }) & {
     onSuccess?: (
       data: TOutput,
       payload: object extends TData<TInput, TVariables>
@@ -65,8 +65,8 @@ export class BaseApiClient {
     TOutput = z.infer<TOutputSchema>,
     TInput = undefined extends TInputSchema ? void : z.infer<TInputSchema>,
     TVariables = undefined extends TVariablesSchema
-    ? void
-    : z.infer<TVariablesSchema>,
+      ? void
+      : z.infer<TVariablesSchema>,
   >({
     method,
     path,
@@ -101,7 +101,9 @@ export class BaseApiClient {
 
       const url = typeof path === "function" ? path(data) : path;
 
-      function createResponse(response: AxiosResponse<TOutput>): AxiosResponse<TOutput> {
+      function createResponse(
+        response: AxiosResponse<TOutput>,
+      ): AxiosResponse<TOutput> {
         const data = outputSchema.parse(response.data) as TOutput;
         return { ...response, data };
       }
