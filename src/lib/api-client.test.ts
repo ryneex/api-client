@@ -1,17 +1,17 @@
 import { describe, expect, it } from "bun:test";
-import { BaseApiClient } from "./base-api-client";
 import axios from "axios";
 import z from "zod";
+import { createClient } from "./api-client";
 
-describe("BaseApiClient", () => {
-  const apiClient = new BaseApiClient(
+describe("ApiClient", () => {
+  const client = createClient(
     axios.create({
       baseURL: "https://jsonplaceholder.typicode.com",
     }),
   );
 
   it("should create a post", async () => {
-    const createPost = apiClient.createEndpoint({
+    const createPost = client.create({
       method: "POST",
       path: "/posts",
       inputSchema: z.object({
@@ -42,7 +42,7 @@ describe("BaseApiClient", () => {
   });
 
   it("should create a post with variables", async () => {
-    const createPost = apiClient.createEndpoint({
+    const createPost = client.create({
       method: "POST",
       path: "/posts",
       variablesSchema: z.object({
@@ -73,7 +73,7 @@ describe("BaseApiClient", () => {
   });
 
   it("should validate input with zod and reject invalid data", async () => {
-    const createPost = apiClient.createEndpoint({
+    const createPost = client.create({
       method: "POST",
       path: "/posts",
       inputSchema: z.object({
@@ -91,7 +91,7 @@ describe("BaseApiClient", () => {
   });
 
   it("should validate variables with zod and reject invalid data", async () => {
-    const createPost = apiClient.createEndpoint({
+    const createPost = client.create({
       method: "POST",
       path: "/posts",
       variablesSchema: z.object({
@@ -111,7 +111,7 @@ describe("BaseApiClient", () => {
   });
 
   it("should validate output with zod and reject invalid data", async () => {
-    const getPostById = apiClient.createEndpoint({
+    const getPostById = client.create({
       method: "GET",
       path: "/posts/1",
       outputSchema: z.object({
@@ -124,7 +124,7 @@ describe("BaseApiClient", () => {
   });
 
   it("should fetch a post by id using variables in the path", async () => {
-    const getPostById = apiClient.createEndpoint({
+    const getPostById = client.create({
       method: "GET",
       path: ({ variables }) => `/posts/${variables.id}`,
       variablesSchema: z.object({

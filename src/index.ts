@@ -1,1 +1,1 @@
-export * from "./lib/base-api-client";
+export * from "./lib/api-client";
