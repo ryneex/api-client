@@ -21,17 +21,17 @@ npm i @ryneex/api-client axios zod @tanstack/react-query
 ```ts
 import axios from "axios";
 import z from "zod";
-import { BaseApiClient } from "@ryneex/api-client";
+import { createClient } from "@ryneex/api-client";
 
 const axiosInstance = axios.create({
   baseURL: "https://api.example.com",
   headers: { "Content-Type": "application/json" },
 });
 
-const api = new BaseApiClient(axiosInstance);
+const client = createClient(axiosInstance);
 
 // Define a GET endpoint with validated response
-const getUsers = api.createEndpoint({
+const getUsers = client.create({
   method: "GET",
   path: "/users",
   outputSchema: z.object({
@@ -54,11 +54,11 @@ const { data } = useQuery(getUsers.queryOptions());
 
 ## Creating the client
 
-Pass any **Axios instance** (with base URL, auth, interceptors, etc.) to `BaseApiClient`:
+Use any **Axios instance** (with base URL, auth, interceptors, etc.) with `createClient`:
 
 ```ts
 import axios from "axios";
-import { BaseApiClient } from "@ryneex/api-client";
+import { createClient } from "@ryneex/api-client";
 
 const axiosInstance = axios.create({
   baseURL: "https://api.example.com/v1",
@@ -69,14 +69,14 @@ const axiosInstance = axios.create({
   },
 });
 
-const api = new BaseApiClient(axiosInstance);
+const client = createClient(axiosInstance);
 ```
 
 ---
 
-## Defining endpoints: `createEndpoint`
+## Defining endpoints: `client.create`
 
-`createEndpoint` takes:
+`client.create` takes:
 
 | Option            | Type                                    | Required | Description                                        |
 | ----------------- | --------------------------------------- | -------- | -------------------------------------------------- |
@@ -86,13 +86,12 @@ const api = new BaseApiClient(axiosInstance);
 | `inputSchema`     | `z.ZodType`                             | No       | Schema for `data.input` (e.g. body for POST).      |
 | `variablesSchema` | `z.ZodType`                             | No       | Schema for `data.variables` (e.g. path/query).     |
 | `axiosOptions`    | `(data) => AxiosRequestConfig`          | No       | Extra Axios config (headers, params, data, etc.).  |
+| `transform`       | `(data, payload) => TOutput`            | No       | Optional post-processing of parsed response data.  |
 
-The returned endpoint is a **function** with extra properties:
+The returned endpoint is a **callable function** with helpers:
 
-- **`call(opts?)`** — same as calling the endpoint directly; returns `Promise<AxiosResponse<TOutput>>`.
-- **`queryKey(data?)`** — stable key for React Query.
+- **Direct call** — call `await endpoint(payload?)` to perform the request; returns `Promise<AxiosResponse<TOutput>>`.
 - **`queryOptions(opts?)`** — `UseQueryOptions` for `useQuery`.
-- **`mutationKey()`** — key for mutations.
 - **`mutationOptions(opts?)`** — `UseMutationOptions` for `useMutation`.
 - **`config`** — `{ method, path, outputSchema, inputSchema?, variablesSchema? }`.
 
@@ -101,7 +100,7 @@ The returned endpoint is a **function** with extra properties:
 ## Example: GET with no input
 
 ```ts
-const getProducts = api.createEndpoint({
+const getProducts = client.create({
   method: "GET",
   path: "/products",
   outputSchema: z.object({
@@ -130,7 +129,7 @@ const { data } = useQuery(getProducts.queryOptions());
 Use `variablesSchema` and a **path function** when the URL or query depends on parameters:
 
 ```ts
-const getUserById = api.createEndpoint({
+const getUserById = client.create({
   method: "GET",
   path: (data) => `/users/${data.variables.userId}`,
   variablesSchema: z.object({ userId: z.string() }),
@@ -160,7 +159,7 @@ const { data } = useQuery(
 Use `inputSchema` for the body and optionally `axiosOptions` to pass it to Axios:
 
 ```ts
-const createUser = api.createEndpoint({
+const createUser = client.create({
   method: "POST",
   path: "/users",
   inputSchema: z.object({
@@ -198,7 +197,7 @@ mutation.mutate({ input: { name: "Jane", email: "jane@example.com" } });
 Combine variables with a path function and `axiosOptions` for query params:
 
 ```ts
-const listUsers = api.createEndpoint({
+const listUsers = client.create({
   method: "GET",
   path: "/users",
   variablesSchema: z.object({
@@ -226,7 +225,7 @@ const { data } = await listUsers({
 Same pattern: use `inputSchema` for body and `axiosOptions` to pass it.
 
 ```ts
-const updateUser = api.createEndpoint({
+const updateUser = client.create({
   method: "PATCH",
   path: (data) => `/users/${data.variables.userId}`,
   variablesSchema: z.object({ userId: z.string() }),
@@ -327,14 +326,14 @@ const { data, error } = useQuery(
 ```ts
 import axios from "axios";
 import z from "zod";
-import { BaseApiClient } from "@ryneex/api-client";
+import { createClient } from "@ryneex/api-client";
 
 const axiosInstance = axios.create({
   baseURL: "https://api.example.com",
   headers: { "Content-Type": "application/json" },
 });
 
-const api = new BaseApiClient(axiosInstance);
+const client = createClient(axiosInstance);
 
 // Schemas
 const userSchema = z.object({
@@ -344,14 +343,14 @@ const userSchema = z.object({
 });
 
 // GET /users
-export const getUsers = api.createEndpoint({
+export const getUsers = client.create({
   method: "GET",
   path: "/users",
   outputSchema: z.object({ users: z.array(userSchema) }),
 });
 
 // GET /users/:id
-export const getUser = api.createEndpoint({
+export const getUser = client.create({
   method: "GET",
   path: (d) => `/users/${d.variables.id}`,
   variablesSchema: z.object({ id: z.string() }),
@@ -359,7 +358,7 @@ export const getUser = api.createEndpoint({
 });
 
 // POST /users
-export const createUser = api.createEndpoint({
+export const createUser = client.create({
   method: "POST",
   path: "/users",
   inputSchema: z.object({
