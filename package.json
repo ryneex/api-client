@@ -2,7 +2,7 @@
   "name": "@ryneex/api-client",
   "module": "src/index.ts",
   "type": "module",
-  "version": "0.0.9",
+  "version": "1.0.0",
   "exports": {
     ".": "./index.js"
   },
