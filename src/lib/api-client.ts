@@ -1,13 +1,14 @@
-import z, { ZodError } from "zod";
+import z from "zod";
 import type {
   ClientOptions,
   ClientPayload,
   OptionalPayload,
   ReactQueryOptions,
   ReactMutationOptions,
-} from "../types";
-import type { AxiosError, AxiosInstance } from "axios";
-import { callApi } from "./call-api";
+  ClientError,
+} from "@/types";
+import type { AxiosInstance } from "axios";
+import { callApi } from "@/lib";
 import {
   type UseMutationOptions,
   type UseQueryOptions,
@@ -50,7 +51,7 @@ export function createClient(axios: AxiosInstance) {
       _opts: object extends ClientPayload<TInput, TVariables>
         ? ReactQueryOptions<TOutput, TInput, TVariables> | void
         : ReactQueryOptions<TOutput, TInput, TVariables>,
-    ): UseQueryOptions<TOutput, ZodError<TOutput> | AxiosError> => {
+    ): UseQueryOptions<TOutput, ClientError> => {
       const { data: _data, ...options } = (_opts ?? {}) as ReactQueryOptions<
         TOutput,
         TInput,
@@ -63,14 +64,14 @@ export function createClient(axios: AxiosInstance) {
 
       return {
         queryFn: async (): Promise<TOutput> => {
-          try {
-            const response = await callApi(apiOptionas, data);
-            options.onSuccess?.(response.data, data);
-            return response.data;
-          } catch (error) {
-            options.onError?.(error as ZodError<TOutput> | AxiosError, data);
-            throw error;
+          const result = await callApi(apiOptionas, data);
+
+          if (result.success) {
+            options.onSuccess?.(result.data, data);
+            return result.data;
           }
+          options.onError?.(result.error, data);
+          throw result.error;
         },
         queryKey: queryKey(data),
         ...options,
@@ -81,7 +82,7 @@ export function createClient(axios: AxiosInstance) {
       _opts: ReactMutationOptions<TOutput, TInput, TVariables> | void,
     ): UseMutationOptions<
       TOutput,
-      ZodError<TOutput> | AxiosError,
+      ClientError,
       object extends ClientPayload<TInput, TVariables>
         ? void
         : ClientPayload<TInput, TVariables>
@@ -97,8 +98,9 @@ export function createClient(axios: AxiosInstance) {
       return {
         mutationFn: async (_data): Promise<TOutput> => {
           const data = (_data ?? {}) as ClientPayload<TInput, TVariables>;
-          const response = await callApi(apiOptionas, data);
-          return response.data;
+          const result = await callApi(apiOptionas, data);
+          if (result.success) return result.data;
+          throw result.error;
         },
         mutationKey: mutationKey(),
         ...options,

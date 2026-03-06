@@ -1,6 +1,12 @@
 import z from "zod";
-import type { ClientPayload, ClientOptions } from "../types";
-import type { AxiosInstance, AxiosResponse } from "axios";
+import type {
+  ClientPayload,
+  ClientOptions,
+  Result,
+  ClientError,
+} from "@/types";
+import type { AxiosError, AxiosInstance, AxiosResponse } from "axios";
+import { err, ok, ValidationError } from "@/lib";
 
 export async function callApi<
   TOutputSchema extends z.ZodType,
@@ -19,62 +25,79 @@ export async function callApi<
     TVariables
   > & { axios: AxiosInstance },
   data: ClientPayload<TInput, TVariables>,
-) {
+): Promise<Result<TOutput, ClientError>> {
   if (typeof data !== "object")
-    throw new Error("API SDK: Data must be an object");
+    throw new Error("API_CLIENT_INTERNAL_ERROR: Data must be an object");
 
   if (opts.inputSchema && "input" in data) {
-    opts.inputSchema.parse(data.input);
+    const parsedResult = opts.inputSchema.safeParse(data.input);
+    if (!parsedResult.success)
+      return err(
+        new ValidationError({
+          type: "INPUT",
+          issues: parsedResult.error.issues,
+        }),
+      );
   }
 
   if (opts.variablesSchema && "variables" in data) {
-    opts.variablesSchema.parse(data.variables);
+    const parsedResult = opts.variablesSchema.safeParse(data.variables);
+    if (!parsedResult.success)
+      return err(
+        new ValidationError({
+          type: "VARIABLE",
+          issues: parsedResult.error.issues,
+        }),
+      );
   }
 
   const axiosOptions = opts.axiosOptions?.(data);
   const url = typeof opts.path === "function" ? opts.path(data) : opts.path;
 
   if (opts.method === "GET") {
-    const response = await opts.axios.get<TOutput>(url, axiosOptions);
-    return getResponse(opts, data, response);
+    return await getResponse(
+      opts.axios.get<TOutput>(url, axiosOptions),
+      opts,
+      data,
+    );
   }
 
   if (opts.method === "POST") {
-    const response = await opts.axios.post<TOutput>(
-      url,
-      axiosOptions?.data,
-      axiosOptions,
+    return await getResponse(
+      opts.axios.post<TOutput>(url, axiosOptions?.data, axiosOptions),
+      opts,
+      data,
     );
-    return getResponse(opts, data, response);
   }
 
   if (opts.method === "PUT") {
-    const response = await opts.axios.put<TOutput>(
-      url,
-      axiosOptions?.data,
-      axiosOptions,
+    return await getResponse(
+      opts.axios.put<TOutput>(url, axiosOptions?.data, axiosOptions),
+      opts,
+      data,
     );
-    return getResponse(opts, data, response);
   }
 
   if (opts.method === "PATCH") {
-    const response = await opts.axios.patch<TOutput>(
-      url,
-      axiosOptions?.data,
-      axiosOptions,
+    return await getResponse(
+      opts.axios.patch<TOutput>(url, axiosOptions?.data, axiosOptions),
+      opts,
+      data,
     );
-    return getResponse(opts, data, response);
   }
 
   if (opts.method === "DELETE") {
-    const response = await opts.axios.delete<TOutput>(url, axiosOptions);
-    return getResponse(opts, data, response);
+    return await getResponse(
+      opts.axios.delete<TOutput>(url, axiosOptions),
+      opts,
+      data,
+    );
   }
 
   throw new Error(`API SDK: Unsupported method: ${opts.method}`);
 }
 
-export function getResponse<
+export async function getResponse<
   TOutputSchema extends z.ZodType,
   TInputSchema extends z.ZodType,
   TVariablesSchema extends z.ZodType,
@@ -82,6 +105,7 @@ export function getResponse<
   TInput = z.infer<TInputSchema>,
   TVariables = z.infer<TVariablesSchema>,
 >(
+  request: Promise<AxiosResponse<TOutput>>,
   opts: ClientOptions<
     TOutputSchema,
     TInputSchema,
@@ -91,13 +115,26 @@ export function getResponse<
     TVariables
   >,
   payload: ClientPayload<TInput, TVariables>,
-  response: AxiosResponse<TOutput>,
-): AxiosResponse<TOutput> {
-  const parsedData = opts.outputSchema.parse(response.data);
+): Promise<Result<TOutput, ClientError>> {
+  try {
+    const response = await request;
 
-  if (opts.transform) {
-    return { ...response, data: opts.transform(parsedData, payload) };
+    const parsedResult = opts.outputSchema.safeParse(response.data);
+
+    if (!parsedResult.success)
+      return err(
+        new ValidationError({
+          type: "OUTPUT",
+          issues: parsedResult.error.issues,
+        }),
+      );
+
+    if (opts.transform) {
+      return ok(opts.transform(parsedResult.data, payload), response);
+    }
+
+    return ok(parsedResult.data as TOutput, response);
+  } catch (error) {
+    return err(error as AxiosError);
   }
-
-  return { ...response, data: parsedData as TOutput };
 }

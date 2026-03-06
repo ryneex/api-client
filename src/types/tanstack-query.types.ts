@@ -2,12 +2,10 @@ import type {
   UseMutationOptions,
   UseQueryOptions,
 } from "@tanstack/react-query";
-import type { AxiosError } from "axios";
-import type { ZodError } from "zod";
-import type { ClientPayload } from "./client.types";
+import type { ClientError, ClientPayload } from "@/types";
 
 export type ReactQueryOptions<TOutput, TInput, TVariables> = Omit<
-  UseQueryOptions<TOutput, ZodError<TOutput> | AxiosError>,
+  UseQueryOptions<TOutput, ClientError>,
   "queryFn" | "queryKey"
 > & { queryKey?: unknown[] } & (object extends ClientPayload<TInput, TVariables>
     ? unknown
@@ -17,7 +15,7 @@ export type ReactQueryOptions<TOutput, TInput, TVariables> = Omit<
       payload: ClientPayload<TInput, TVariables>,
     ) => void;
     onError?: (
-      error: ZodError<TOutput> | AxiosError,
+      error: ClientError,
       payload: ClientPayload<TInput, TVariables>,
     ) => void;
   };
@@ -25,7 +23,7 @@ export type ReactQueryOptions<TOutput, TInput, TVariables> = Omit<
 export type ReactMutationOptions<TOutput, TInput, TVariables> = Omit<
   UseMutationOptions<
     TOutput,
-    ZodError<TOutput> | AxiosError,
+    ClientError,
     object extends ClientPayload<TInput, TVariables>
       ? void
       : ClientPayload<TInput, TVariables>
