@@ -15,3 +15,6 @@ export type Err<E> = {
 };
 
 export type Result<T, E> = Ok<T> | Err<E>;
+
+export type InferOk<T> = T extends Ok<infer K> ? K : never;
+export type InferErr<T> = T extends Err<infer K> ? K : never;
