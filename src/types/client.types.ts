@@ -14,9 +14,9 @@ export type ClientOptions<
   TOutputSchema extends z.ZodType,
   TInputSchema extends z.ZodType,
   TVariablesSchema extends z.ZodType,
-  TOutput = z.infer<TOutputSchema>,
-  TInput = z.infer<TInputSchema>,
-  TVariables = z.infer<TVariablesSchema>,
+  TOutput = z.output<TOutputSchema>,
+  TInput = z.input<TInputSchema>,
+  TVariables = z.input<TVariablesSchema>,
 > = {
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   path: string | ((payload: ClientPayload<TInput, TVariables>) => string);
@@ -27,7 +27,7 @@ export type ClientOptions<
   inputSchema?: TInputSchema;
   outputSchema: TOutputSchema;
   transform?: (
-    data: z.infer<TOutputSchema>,
+    data: z.output<TOutputSchema>,
     payload: ClientPayload<TInput, TVariables>,
   ) => TOutput;
 };

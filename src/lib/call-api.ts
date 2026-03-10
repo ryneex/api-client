@@ -12,9 +12,9 @@ export async function callApi<
   TOutputSchema extends z.ZodType,
   TInputSchema extends z.ZodType,
   TVariablesSchema extends z.ZodType,
-  TOutput = z.infer<TOutputSchema>,
-  TInput = z.infer<TInputSchema>,
-  TVariables = z.infer<TVariablesSchema>,
+  TOutput = z.output<TOutputSchema>,
+  TInput = z.input<TInputSchema>,
+  TVariables = z.input<TVariablesSchema>,
 >(
   opts: ClientOptions<
     TOutputSchema,
@@ -101,9 +101,9 @@ export async function getResponse<
   TOutputSchema extends z.ZodType,
   TInputSchema extends z.ZodType,
   TVariablesSchema extends z.ZodType,
-  TOutput = z.infer<TOutputSchema>,
-  TInput = z.infer<TInputSchema>,
-  TVariables = z.infer<TVariablesSchema>,
+  TOutput = z.output<TOutputSchema>,
+  TInput = z.input<TInputSchema>,
+  TVariables = z.input<TVariablesSchema>,
 >(
   request: Promise<AxiosResponse<TOutput>>,
   opts: ClientOptions<

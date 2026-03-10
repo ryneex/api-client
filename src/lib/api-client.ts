@@ -19,9 +19,9 @@ export function createClient(axios: AxiosInstance) {
     TOutputSchema extends z.ZodType,
     TInputSchema extends z.ZodType,
     TVariablesSchema extends z.ZodType,
-    TOutput = z.infer<TOutputSchema>,
-    TInput = z.infer<TInputSchema>,
-    TVariables = z.infer<TVariablesSchema>,
+    TOutput = z.output<TOutputSchema>,
+    TInput = z.input<TInputSchema>,
+    TVariables = z.input<TVariablesSchema>,
   >(
     opts: ClientOptions<
       TOutputSchema,
@@ -108,8 +108,11 @@ export function createClient(axios: AxiosInstance) {
     };
 
     return Object.assign(call, {
+      call,
       queryOptions,
       mutationOptions,
+      queryKey,
+      mutationKey,
       config: {
         ...apiOptionas,
         inputSchema: opts.inputSchema as undefined extends TInputSchema
