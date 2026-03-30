@@ -21,15 +21,17 @@ export function createClient(axios: AxiosInstance) {
     TVariablesSchema extends z.ZodType,
     TOutput = z.output<TOutputSchema>,
     TInput = z.input<TInputSchema>,
+    TInputCoerced = z.output<TInputSchema>,
     TVariables = z.input<TVariablesSchema>,
+    TVariablesCoerced = z.output<TVariablesSchema>,
   >(
     opts: ClientOptions<
       TOutputSchema,
       TInputSchema,
       TVariablesSchema,
       TOutput,
-      TInput,
-      TVariables
+      TInputCoerced,
+      TVariablesCoerced
     >,
   ) {
     const uuid = crypto.randomUUID();

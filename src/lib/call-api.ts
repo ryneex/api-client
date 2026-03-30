@@ -13,7 +13,9 @@ export async function callApi<
   TInputSchema extends z.ZodType,
   TVariablesSchema extends z.ZodType,
   TOutput = z.output<TOutputSchema>,
+  TInputCoerced = z.output<TInputSchema>,
   TInput = z.input<TInputSchema>,
+  TVariablesCoerced = z.output<TVariablesSchema>,
   TVariables = z.input<TVariablesSchema>,
 >(
   opts: ClientOptions<
@@ -21,11 +23,13 @@ export async function callApi<
     TInputSchema,
     TVariablesSchema,
     TOutput,
-    TInput,
-    TVariables
+    TInputCoerced,
+    TVariablesCoerced
   > & { axios: AxiosInstance },
-  data: ClientPayload<TInput, TVariables>,
+  _data: ClientPayload<TInput, TVariables>,
 ): Promise<Result<TOutput, ClientError>> {
+  const data = {} as ClientPayload<TInputCoerced, TVariablesCoerced>;
+
   if (typeof data !== "object")
     throw new Error("API_CLIENT_INTERNAL_ERROR: Data must be an object");
 
@@ -38,6 +42,8 @@ export async function callApi<
           issues: parsedResult.error.issues,
         }),
       );
+
+    data.input = parsedResult.data;
   }
 
   if (opts.variablesSchema && "variables" in data) {
@@ -49,6 +55,8 @@ export async function callApi<
           issues: parsedResult.error.issues,
         }),
       );
+
+    data.variables = parsedResult.data;
   }
 
   const axiosOptions = opts.axiosOptions?.(data);
@@ -102,8 +110,8 @@ export async function getResponse<
   TInputSchema extends z.ZodType,
   TVariablesSchema extends z.ZodType,
   TOutput = z.output<TOutputSchema>,
-  TInput = z.input<TInputSchema>,
-  TVariables = z.input<TVariablesSchema>,
+  TInputCoerced = z.output<TInputSchema>,
+  TVariablesCoerced = z.output<TVariablesSchema>,
 >(
   request: Promise<AxiosResponse<TOutput>>,
   opts: ClientOptions<
@@ -111,10 +119,10 @@ export async function getResponse<
     TInputSchema,
     TVariablesSchema,
     TOutput,
-    TInput,
-    TVariables
+    TInputCoerced,
+    TVariablesCoerced
   >,
-  payload: ClientPayload<TInput, TVariables>,
+  payload: ClientPayload<TInputCoerced, TVariablesCoerced>,
 ): Promise<Result<TOutput, ClientError>> {
   try {
     const response = await request;

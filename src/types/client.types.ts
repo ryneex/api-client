@@ -15,19 +15,21 @@ export type ClientOptions<
   TInputSchema extends z.ZodType,
   TVariablesSchema extends z.ZodType,
   TOutput = z.output<TOutputSchema>,
-  TInput = z.input<TInputSchema>,
-  TVariables = z.input<TVariablesSchema>,
+  TInputCoerced = z.output<TInputSchema>,
+  TVariablesCoerced = z.output<TVariablesSchema>,
 > = {
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-  path: string | ((payload: ClientPayload<TInput, TVariables>) => string);
+  path:
+    | string
+    | ((payload: ClientPayload<TInputCoerced, TVariablesCoerced>) => string);
   axiosOptions?: (
-    payload: ClientPayload<TInput, TVariables>,
+    payload: ClientPayload<TInputCoerced, TVariablesCoerced>,
   ) => AxiosRequestConfig;
   variablesSchema?: TVariablesSchema;
   inputSchema?: TInputSchema;
   outputSchema: TOutputSchema;
   transform?: (
     data: z.output<TOutputSchema>,
-    payload: ClientPayload<TInput, TVariables>,
+    payload: ClientPayload<TInputCoerced, TVariablesCoerced>,
   ) => TOutput;
 };
