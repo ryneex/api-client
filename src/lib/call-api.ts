@@ -30,11 +30,11 @@ export async function callApi<
 ): Promise<Result<TOutput, ClientError>> {
   const data = {} as ClientPayload<TInputCoerced, TVariablesCoerced>;
 
-  if (typeof data !== "object")
+  if (typeof _data !== "object")
     throw new Error("API_CLIENT_INTERNAL_ERROR: Data must be an object");
 
-  if (opts.inputSchema && "input" in data) {
-    const parsedResult = opts.inputSchema.safeParse(data.input);
+  if (opts.inputSchema && "input" in _data) {
+    const parsedResult = opts.inputSchema.safeParse(_data.input);
     if (!parsedResult.success)
       return err(
         new ValidationError({
@@ -43,11 +43,12 @@ export async function callApi<
         }),
       );
 
+    // @ts-expect-error - This is a hack to get the data into the data object
     data.input = parsedResult.data;
   }
 
-  if (opts.variablesSchema && "variables" in data) {
-    const parsedResult = opts.variablesSchema.safeParse(data.variables);
+  if (opts.variablesSchema && "variables" in _data) {
+    const parsedResult = opts.variablesSchema.safeParse(_data.variables);
     if (!parsedResult.success)
       return err(
         new ValidationError({
@@ -56,6 +57,7 @@ export async function callApi<
         }),
       );
 
+    // @ts-expect-error - This is a hack to get the data into the data object
     data.variables = parsedResult.data;
   }
 
