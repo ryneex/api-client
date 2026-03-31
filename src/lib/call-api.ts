@@ -61,8 +61,9 @@ export async function callApi<
     data.variables = parsedResult.data;
   }
 
-  const axiosOptions = opts.axiosOptions?.(data);
-  const url = typeof opts.path === "function" ? opts.path(data) : opts.path;
+  const axiosOptions = await opts.axiosOptions?.(data);
+  const url =
+    typeof opts.path === "function" ? await opts.path(data) : opts.path;
 
   if (opts.method === "GET") {
     return await getResponse(
@@ -140,7 +141,7 @@ export async function getResponse<
       );
 
     if (opts.transform) {
-      return ok(opts.transform(parsedResult.data, payload), response);
+      return ok(await opts.transform(parsedResult.data, payload), response);
     }
 
     return ok(parsedResult.data as TOutput, response);

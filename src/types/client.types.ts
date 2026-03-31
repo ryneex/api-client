@@ -21,15 +21,17 @@ export type ClientOptions<
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   path:
     | string
-    | ((payload: ClientPayload<TInputCoerced, TVariablesCoerced>) => string);
+    | ((
+        payload: ClientPayload<TInputCoerced, TVariablesCoerced>,
+      ) => string | Promise<string>);
   axiosOptions?: (
     payload: ClientPayload<TInputCoerced, TVariablesCoerced>,
-  ) => AxiosRequestConfig;
+  ) => AxiosRequestConfig | Promise<AxiosRequestConfig>;
   variablesSchema?: TVariablesSchema;
   inputSchema?: TInputSchema;
   outputSchema: TOutputSchema;
   transform?: (
     data: z.output<TOutputSchema>,
     payload: ClientPayload<TInputCoerced, TVariablesCoerced>,
-  ) => TOutput;
+  ) => TOutput | Promise<TOutput>;
 };
