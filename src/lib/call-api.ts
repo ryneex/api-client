@@ -38,7 +38,7 @@ export async function callApi<
     if (!parsedResult.success)
       return err(
         new ValidationError({
-          type: "INPUT",
+          type: "input",
           issues: parsedResult.error.issues,
         }),
       );
@@ -52,7 +52,7 @@ export async function callApi<
     if (!parsedResult.success)
       return err(
         new ValidationError({
-          type: "VARIABLE",
+          type: "variable",
           issues: parsedResult.error.issues,
         }),
       );
@@ -135,7 +135,7 @@ export async function getResponse<
     if (!parsedResult.success)
       return err(
         new ValidationError({
-          type: "OUTPUT",
+          type: "output",
           issues: parsedResult.error.issues,
         }),
       );

@@ -14,7 +14,14 @@ import {
   type UseQueryOptions,
 } from "@tanstack/react-query";
 
-export function createClient(axios: AxiosInstance) {
+type CreateClientOptions = {
+  beforeThrow?: (error: ClientError) => void | Promise<void>;
+};
+
+export function createClient(
+  axios: AxiosInstance,
+  { beforeThrow }: CreateClientOptions = {},
+) {
   function create<
     TOutputSchema extends z.ZodType,
     TInputSchema extends z.ZodType,
@@ -73,6 +80,7 @@ export function createClient(axios: AxiosInstance) {
             return result.data;
           }
           options.onError?.(result.error, data);
+          await beforeThrow?.(result.error);
           throw result.error;
         },
         queryKey: queryKey(data),
@@ -102,6 +110,7 @@ export function createClient(axios: AxiosInstance) {
           const data = (_data ?? {}) as ClientPayload<TInput, TVariables>;
           const result = await callApi(apiOptionas, data);
           if (result.success) return result.data;
+          await beforeThrow?.(result.error);
           throw result.error;
         },
         mutationKey: mutationKey(),

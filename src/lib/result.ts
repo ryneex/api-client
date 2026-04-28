@@ -4,20 +4,25 @@ import type { Err, Ok } from "@/types";
 import type { AxiosResponse } from "axios";
 
 export const VALIDATION_ERROR_NAMES = {
-  INPUT: "InputValidationError",
-  VARIABLE: "VariableValidationError",
-  OUTPUT: "OutputValidationError",
+  input: "InputValidationError",
+  variable: "VariableValidationError",
+  output: "OutputValidationError",
 } as const;
 
+export type ValidationErrorType = keyof typeof VALIDATION_ERROR_NAMES;
+
 export type ApiClientErrorProps = {
-  type: keyof typeof VALIDATION_ERROR_NAMES;
+  type: ValidationErrorType;
   issues: z.core.$ZodIssue[];
 };
 
 export class ValidationError extends ZodError {
+  override type: ValidationErrorType;
+
   constructor({ type, issues }: ApiClientErrorProps) {
     super(issues);
 
+    this.type = type;
     this.name = VALIDATION_ERROR_NAMES[type];
   }
 }
