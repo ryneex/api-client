@@ -14,12 +14,12 @@ describe("ApiClient", () => {
     const createPost = client.create({
       method: "POST",
       path: "/posts",
-      inputSchema: z.object({
+      input: z.object({
         title: z.string(),
         body: z.string(),
         userId: z.number(),
       }),
-      outputSchema: z.object({
+      output: z.object({
         title: z.string(),
         body: z.string(),
         userId: z.number(),
@@ -46,12 +46,12 @@ describe("ApiClient", () => {
     const createPost = client.create({
       method: "POST",
       path: "/posts",
-      variablesSchema: z.object({
+      variables: z.object({
         userId: z.number(),
         title: z.string(),
         body: z.string(),
       }),
-      outputSchema: z.object({
+      output: z.object({
         title: z.string(),
         body: z.string(),
         userId: z.number(),
@@ -78,10 +78,10 @@ describe("ApiClient", () => {
     const createPost = client.create({
       method: "POST",
       path: "/posts",
-      inputSchema: z.object({
+      input: z.object({
         title: z.string(),
       }),
-      outputSchema: z.any(),
+      output: z.any(),
       axiosOptions: (data) => ({
         data: data.input,
       }),
@@ -99,10 +99,10 @@ describe("ApiClient", () => {
     const createPost = client.create({
       method: "POST",
       path: "/posts",
-      variablesSchema: z.object({
+      variables: z.object({
         userId: z.number(),
       }),
-      outputSchema: z.unknown(),
+      output: z.unknown(),
       axiosOptions: (data) => ({
         data: data.variables,
       }),
@@ -120,7 +120,7 @@ describe("ApiClient", () => {
     const getPostById = client.create({
       method: "GET",
       path: "/posts/1",
-      outputSchema: z.object({
+      output: z.object({
         // Intentionally invalid: userId must be a number
         userId: z.string(),
       }),
@@ -135,10 +135,10 @@ describe("ApiClient", () => {
     const getPostById = client.create({
       method: "GET",
       path: ({ variables }) => `/posts/${variables.id}`,
-      variablesSchema: z.object({
+      variables: z.object({
         id: z.number(),
       }),
-      outputSchema: z.object({
+      output: z.object({
         userId: z.number(),
         id: z.number(),
         title: z.string(),

@@ -27,9 +27,9 @@ export type ClientOptions<
   axiosOptions?: (
     payload: ClientPayload<TInputCoerced, TVariablesCoerced>,
   ) => AxiosRequestConfig | Promise<AxiosRequestConfig>;
-  variablesSchema?: TVariablesSchema;
-  inputSchema?: TInputSchema;
-  outputSchema: TOutputSchema;
+  variables?: TVariablesSchema;
+  input?: TInputSchema;
+  output: TOutputSchema;
   transform?: (
     data: z.output<TOutputSchema>,
     payload: ClientPayload<TInputCoerced, TVariablesCoerced>,

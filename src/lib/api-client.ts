@@ -126,13 +126,9 @@ export function createClient(
       mutationKey,
       config: {
         ...apiOptionas,
-        inputSchema: opts.inputSchema as undefined extends TInputSchema
-          ? undefined
-          : NonNullable<TInputSchema>,
-        variablesSchema:
-          opts.variablesSchema as undefined extends TVariablesSchema
-            ? undefined
-            : NonNullable<TVariablesSchema>,
+        input: opts.input as TInputSchema,
+        variables: opts.variables as TVariablesSchema,
+        output: opts.output as TOutputSchema,
       },
     });
   }

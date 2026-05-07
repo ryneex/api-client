@@ -33,8 +33,8 @@ export async function callApi<
   if (typeof _data !== "object")
     throw new Error("API_CLIENT_INTERNAL_ERROR: Data must be an object");
 
-  if (opts.inputSchema && "input" in _data) {
-    const parsedResult = opts.inputSchema.safeParse(_data.input);
+  if (opts.input && "input" in _data) {
+    const parsedResult = opts.input.safeParse(_data.input);
     if (!parsedResult.success)
       return err(
         new ValidationError({
@@ -47,8 +47,8 @@ export async function callApi<
     data.input = parsedResult.data;
   }
 
-  if (opts.variablesSchema && "variables" in _data) {
-    const parsedResult = opts.variablesSchema.safeParse(_data.variables);
+  if (opts.variables && "variables" in _data) {
+    const parsedResult = opts.variables.safeParse(_data.variables);
     if (!parsedResult.success)
       return err(
         new ValidationError({
@@ -130,7 +130,7 @@ export async function getResponse<
   try {
     const response = await request;
 
-    const parsedResult = opts.outputSchema.safeParse(response.data);
+    const parsedResult = opts.output.safeParse(response.data);
 
     if (!parsedResult.success)
       return err(
