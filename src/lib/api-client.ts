@@ -135,3 +135,20 @@ export function createClient(
 
   return { create };
 }
+
+export type Client = {
+  call: unknown;
+  queryOptions: unknown;
+  mutationOptions: unknown;
+  queryKey: unknown;
+  mutationKey: unknown;
+  config: unknown;
+};
+
+export type ClientGroup = {
+  [key: string]: Client | ClientGroup;
+};
+
+export function createClientGroup<T extends ClientGroup>(group: T) {
+  return group;
+}
