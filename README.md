@@ -34,16 +34,21 @@ const client = createClient(axiosInstance);
 const getUsers = client.create({
   method: "GET",
   path: "/users",
-  outputSchema: z.object({
+  output: z.object({
     users: z.array(
       z.object({ id: z.string(), name: z.string(), email: z.string() }),
     ),
   }),
 });
 
-// Call it (returns AxiosResponse<inferred output type>)
-const res = await getUsers();
-console.log(res.data.users);
+// Call it — returns a Result (success | error)
+const result = await getUsers();
+if (result.success) {
+  console.log(result.data.users);
+  console.log(result.response.status);
+} else {
+  console.error(result.error);
+}
 
 // Or use with React Query
 import { useQuery } from "@tanstack/react-query";
@@ -70,7 +75,17 @@ const axiosInstance = axios.create({
 });
 
 const client = createClient(axiosInstance);
+
+// Optional: run before React Query helpers throw on failure
+const clientWithHook = createClient(axiosInstance, {
+  beforeThrow: async (error) => {
+    // e.g. toast, logging, redirect on 401
+    console.error(error);
+  },
+});
 ```
+
+`beforeThrow` runs in `queryOptions` / `mutationOptions` after a failed call and before the error is thrown to React Query. Direct `call` / `endpoint()` returns never throw for API failures — they return a `Result` instead.
 
 ---
 
@@ -78,22 +93,28 @@ const client = createClient(axiosInstance);
 
 `client.create` takes:
 
-| Option            | Type                                    | Required | Description                                        |
-| ----------------- | --------------------------------------- | -------- | -------------------------------------------------- |
-| `method`          | `GET \| POST \| PUT \| PATCH \| DELETE` | Yes      | HTTP method.                                       |
-| `path`            | `string \| (data) => string`            | Yes      | URL path (static or derived from input/variables). |
-| `outputSchema`    | `z.ZodType`                             | Yes      | Zod schema for response body; type is inferred.    |
-| `inputSchema`     | `z.ZodType`                             | No       | Schema for `data.input` (e.g. body for POST).      |
-| `variablesSchema` | `z.ZodType`                             | No       | Schema for `data.variables` (e.g. path/query).     |
-| `axiosOptions`    | `(data) => AxiosRequestConfig`          | No       | Extra Axios config (headers, params, data, etc.).  |
-| `transform`       | `(data, payload) => TOutput`            | No       | Optional post-processing of parsed response data.  |
+| Option         | Type                                           | Required | Description                                        |
+| -------------- | ---------------------------------------------- | -------- | -------------------------------------------------- |
+| `method`       | `GET \| POST \| PUT \| PATCH \| DELETE`        | Yes      | HTTP method.                                       |
+| `path`         | `string \| (data) => string \| Promise<string>` | Yes     | URL path (static or derived from input/variables). |
+| `output`       | `z.ZodType`                                    | Yes      | Zod schema for response body; type is inferred.    |
+| `input`        | `z.ZodType`                                    | No       | Schema for `data.input` (e.g. body for POST).      |
+| `variables`    | `z.ZodType`                                    | No       | Schema for `data.variables` (e.g. path/query).     |
+| `axiosOptions` | `(data) => AxiosRequestConfig \| Promise<…>`   | No       | Extra Axios config (headers, params, data, etc.).  |
+| `transform`    | `(data, payload) => TOutput \| Promise<…>`     | No       | Optional post-processing of parsed response data.  |
+
+`path`, `axiosOptions`, and `transform` may be async.
 
 The returned endpoint is a **callable function** with helpers:
 
-- **Direct call** — call `await endpoint(payload?)` to perform the request; returns `Promise<AxiosResponse<TOutput>>`.
-- **`queryOptions(opts?)`** — `UseQueryOptions` for `useQuery`.
-- **`mutationOptions(opts?)`** — `UseMutationOptions` for `useMutation`.
-- **`config`** — `{ method, path, outputSchema, inputSchema?, variablesSchema? }`.
+- **Direct call** — `await endpoint(payload?)` returns `Promise<Result<TOutput, ClientError>>`.
+  - Success: `{ success: true, data, response }` (`response` is the Axios response).
+  - Failure: `{ success: false, error }` (`ValidationError` or `AxiosError`).
+- **`call(payload?)`** — same as the direct call.
+- **`queryOptions(opts?)`** — `UseQueryOptions` for `useQuery` (throws `ClientError` on failure).
+- **`mutationOptions(opts?)`** — `UseMutationOptions` for `useMutation` (throws `ClientError` on failure).
+- **`queryKey(data?)`** / **`mutationKey()`** — stable keys for cache invalidation.
+- **`config`** — `{ method, path, output, input?, variables?, axios, … }`.
 
 ---
 
@@ -103,7 +124,7 @@ The returned endpoint is a **callable function** with helpers:
 const getProducts = client.create({
   method: "GET",
   path: "/products",
-  outputSchema: z.object({
+  output: z.object({
     products: z.array(
       z.object({
         id: z.string(),
@@ -115,8 +136,9 @@ const getProducts = client.create({
 });
 
 // Direct call
-const { data } = await getProducts();
-// data is { products: { id, title, price }[] }
+const result = await getProducts();
+if (!result.success) throw result.error;
+// result.data is { products: { id, title, price }[] }
 
 // React Query
 const { data } = useQuery(getProducts.queryOptions());
@@ -126,14 +148,14 @@ const { data } = useQuery(getProducts.queryOptions());
 
 ## Example: GET with variables (path/query)
 
-Use `variablesSchema` and a **path function** when the URL or query depends on parameters:
+Use `variables` and a **path function** when the URL or query depends on parameters:
 
 ```ts
 const getUserById = client.create({
   method: "GET",
   path: (data) => `/users/${data.variables.userId}`,
-  variablesSchema: z.object({ userId: z.string() }),
-  outputSchema: z.object({
+  variables: z.object({ userId: z.string() }),
+  output: z.object({
     id: z.string(),
     name: z.string(),
     email: z.string(),
@@ -141,7 +163,8 @@ const getUserById = client.create({
 });
 
 // Direct call — pass { variables: { userId: "123" } }
-const { data } = await getUserById({ variables: { userId: "123" } });
+const result = await getUserById({ variables: { userId: "123" } });
+if (!result.success) throw result.error;
 
 // React Query — must pass data so queryKey and queryFn get userId
 const { data } = useQuery(
@@ -156,17 +179,17 @@ const { data } = useQuery(
 
 ## Example: POST with request body (input)
 
-Use `inputSchema` for the body and optionally `axiosOptions` to pass it to Axios:
+Use `input` for the body and optionally `axiosOptions` to pass it to Axios:
 
 ```ts
 const createUser = client.create({
   method: "POST",
   path: "/users",
-  inputSchema: z.object({
+  input: z.object({
     name: z.string().min(1),
     email: z.string().email(),
   }),
-  outputSchema: z.object({
+  output: z.object({
     id: z.string(),
     name: z.string(),
     email: z.string(),
@@ -177,9 +200,10 @@ const createUser = client.create({
 });
 
 // Direct call
-const { data } = await createUser({
+const result = await createUser({
   input: { name: "Jane", email: "jane@example.com" },
 });
+if (!result.success) throw result.error;
 
 // React Query mutation
 const mutation = useMutation(
@@ -200,11 +224,11 @@ Combine variables with a path function and `axiosOptions` for query params:
 const listUsers = client.create({
   method: "GET",
   path: "/users",
-  variablesSchema: z.object({
+  variables: z.object({
     page: z.number().optional(),
     limit: z.number().optional(),
   }),
-  outputSchema: z.object({
+  output: z.object({
     users: z.array(z.object({ id: z.string(), name: z.string() })),
     total: z.number(),
   }),
@@ -213,27 +237,28 @@ const listUsers = client.create({
   }),
 });
 
-const { data } = await listUsers({
+const result = await listUsers({
   variables: { page: 1, limit: 10 },
 });
+if (!result.success) throw result.error;
 ```
 
 ---
 
 ## Example: PUT / PATCH / DELETE
 
-Same pattern: use `inputSchema` for body and `axiosOptions` to pass it.
+Same pattern: use `input` for body and `axiosOptions` to pass it.
 
 ```ts
 const updateUser = client.create({
   method: "PATCH",
   path: (data) => `/users/${data.variables.userId}`,
-  variablesSchema: z.object({ userId: z.string() }),
-  inputSchema: z.object({
+  variables: z.object({ userId: z.string() }),
+  input: z.object({
     name: z.string().optional(),
     email: z.string().email().optional(),
   }),
-  outputSchema: z.object({
+  output: z.object({
     id: z.string(),
     name: z.string(),
     email: z.string(),
@@ -243,11 +268,51 @@ const updateUser = client.create({
   }),
 });
 
-await updateUser({
+const result = await updateUser({
   variables: { userId: "123" },
   input: { name: "New Name" },
 });
+if (!result.success) throw result.error;
 ```
+
+---
+
+## Grouping endpoints: `createClientGroup`
+
+Organize related endpoints into a typed tree:
+
+```ts
+import { createClient, createClientGroup } from "@ryneex/api-client";
+
+const client = createClient(axiosInstance);
+
+export const api = createClientGroup({
+  users: {
+    list: client.create({
+      method: "GET",
+      path: "/users",
+      output: z.object({ users: z.array(userSchema) }),
+    }),
+    get: client.create({
+      method: "GET",
+      path: (d) => `/users/${d.variables.id}`,
+      variables: z.object({ id: z.string() }),
+      output: userSchema,
+    }),
+    create: client.create({
+      method: "POST",
+      path: "/users",
+      input: z.object({ name: z.string(), email: z.string().email() }),
+      output: userSchema,
+      axiosOptions: (d) => ({ data: d.input }),
+    }),
+  },
+});
+
+// api.users.list(), api.users.get({ variables: { id: "1" } }), …
+```
+
+`createClientGroup` is a typed identity helper — it returns the same object with a `ClientGroup` type for nesting.
 
 ---
 
@@ -258,6 +323,7 @@ await updateUser({
 - Use **`queryOptions({ data?, ...useQueryOptions })`**.
 - If the endpoint has **input or variables**, pass **`data`** so both `queryKey` and `queryFn` receive it.
 - You can pass any `useQuery` options (`staleTime`, `enabled`, etc.) and optional **`onSuccess`** / **`onError`** with the same payload shape.
+- Use **`endpoint.queryKey(data?)`** when invalidating or prefetching.
 
 ```ts
 // No input/variables
@@ -272,6 +338,9 @@ useQuery(
     onError: (err, { variables }) => {},
   }),
 );
+
+// Invalidate
+queryClient.invalidateQueries({ queryKey: getUserById.queryKey() });
 ```
 
 ### Mutations (POST / PUT / PATCH / DELETE)
@@ -296,20 +365,42 @@ mutation.mutate({
 
 ## Validation and errors
 
-- **Input** and **variables** are validated with Zod before the request; invalid data throws **`ZodError`**.
-- **Response** is parsed with `outputSchema` after the request; invalid response throws **`ZodError`**.
-- Network or server errors are **AxiosError**.
+Direct calls return a **Result** instead of throwing:
 
-So the callable and React Query helpers can throw **`ZodError | AxiosError`**. Handle both in `onError` or in try/catch:
+| Outcome                         | Shape                                      |
+| ------------------------------- | ------------------------------------------ |
+| Success                         | `{ success: true, data, response }`        |
+| Input / variables / output fail | `{ success: false, error: ValidationError }` |
+| Network / HTTP error            | `{ success: false, error: AxiosError }`    |
+
+`ValidationError` extends Zod’s `ZodError` and sets:
+
+| `error.type` | `error.name`                 |
+| ------------ | ---------------------------- |
+| `"input"`    | `"InputValidationError"`     |
+| `"variable"` | `"VariableValidationError"`  |
+| `"output"`   | `"OutputValidationError"`    |
+
+React Query helpers (`queryOptions` / `mutationOptions`) unwrap the Result and **throw** `ClientError` (`ValidationError | AxiosError`) so `useQuery` / `useMutation` error handling works as usual. If you passed `beforeThrow` to `createClient`, it runs first.
 
 ```ts
 import { AxiosError } from "axios";
-import { ZodError } from "zod";
+import { ValidationError } from "@ryneex/api-client";
 
-const { data, error } = useQuery(
+const result = await getUsers();
+if (!result.success) {
+  if (result.error instanceof ValidationError) {
+    console.error(result.error.type, result.error.flatten());
+  } else if (result.error instanceof AxiosError) {
+    console.error("Request failed", result.error.response?.status);
+  }
+}
+
+// With React Query
+useQuery(
   getUsers.queryOptions({
     onError: (err) => {
-      if (err instanceof ZodError) {
+      if (err instanceof ValidationError) {
         console.error("Validation failed", err.flatten());
       } else if (err instanceof AxiosError) {
         console.error("Request failed", err.response?.status);
@@ -326,7 +417,7 @@ const { data, error } = useQuery(
 ```ts
 import axios from "axios";
 import z from "zod";
-import { createClient } from "@ryneex/api-client";
+import { createClient, createClientGroup } from "@ryneex/api-client";
 
 const axiosInstance = axios.create({
   baseURL: "https://api.example.com",
@@ -335,43 +426,43 @@ const axiosInstance = axios.create({
 
 const client = createClient(axiosInstance);
 
-// Schemas
 const userSchema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string(),
 });
 
-// GET /users
-export const getUsers = client.create({
-  method: "GET",
-  path: "/users",
-  outputSchema: z.object({ users: z.array(userSchema) }),
-});
-
-// GET /users/:id
-export const getUser = client.create({
-  method: "GET",
-  path: (d) => `/users/${d.variables.id}`,
-  variablesSchema: z.object({ id: z.string() }),
-  outputSchema: userSchema,
-});
-
-// POST /users
-export const createUser = client.create({
-  method: "POST",
-  path: "/users",
-  inputSchema: z.object({
-    name: z.string(),
-    email: z.string().email(),
-  }),
-  outputSchema: userSchema,
-  axiosOptions: (d) => ({ data: d.input }),
+export const api = createClientGroup({
+  users: {
+    list: client.create({
+      method: "GET",
+      path: "/users",
+      output: z.object({ users: z.array(userSchema) }),
+    }),
+    get: client.create({
+      method: "GET",
+      path: (d) => `/users/${d.variables.id}`,
+      variables: z.object({ id: z.string() }),
+      output: userSchema,
+    }),
+    create: client.create({
+      method: "POST",
+      path: "/users",
+      input: z.object({
+        name: z.string(),
+        email: z.string().email(),
+      }),
+      output: userSchema,
+      axiosOptions: (d) => ({ data: d.input }),
+    }),
+  },
 });
 
 // Usage in a component
-// const { data } = useQuery(getUsers.queryOptions());
-// const { data } = useQuery(getUser.queryOptions({ data: { variables: { id: "1" } } }));
-// const mutation = useMutation(createUser.mutationOptions());
+// const { data } = useQuery(api.users.list.queryOptions());
+// const { data } = useQuery(
+//   api.users.get.queryOptions({ data: { variables: { id: "1" } } }),
+// );
+// const mutation = useMutation(api.users.create.mutationOptions());
 // mutation.mutate({ input: { name: "Jane", email: "jane@example.com" } });
 ```
